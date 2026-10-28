@@ -24,6 +24,12 @@ io.on('connection', function(socket){
   });
 });
 
-http.listen(port, function(){
-  console.log('listening on *:' + port);
-});
+// solo escucha al ejecutarse directamente (node server.js),
+// no al importarse desde las pruebas
+if (require.main === module) {
+  http.listen(port, function(){
+    console.log('listening on *:' + port);
+  });
+}
+
+module.exports = { app: app, http: http, io: io, port: port };

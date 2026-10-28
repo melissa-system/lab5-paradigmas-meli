@@ -6,6 +6,13 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "mocha"
+    "test": "mocha",
+    "test:unit": "mocha test/test.js",
+    "test:integration": "mocha test/ux.test.js",
+    "test:e2e": "mocha test/ux.test.js --grep \"e2e\""
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "socket.io-client": "^4.8.4"
   }
 }
