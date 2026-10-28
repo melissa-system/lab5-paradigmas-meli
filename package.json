@@ -12,7 +12,11 @@
     "test:e2e": "mocha test/ux.test.js --grep \"e2e\""
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "jest": "^30.5.2",
     "jsdom": "^29.1.1",
-    "socket.io-client": "^4.8.4"
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.3.1"
   }
 }
