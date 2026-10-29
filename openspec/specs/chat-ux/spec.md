@@ -68,18 +68,6 @@ El chat SHALL desplazarse automáticamente al mensaje más reciente cuando llega
 - **WHEN** el cliente recibe o envía un mensaje
 - **THEN** la vista se desplaza al final de la lista de mensajes
 
-### Requirement: Persistencia del nombre de usuario
-
-El chat SHALL recordar el nombre de usuario en el navegador y restaurarlo en visitas posteriores.
-
-#### Scenario: Nombre guardado
-- **WHEN** el usuario envía un mensaje con un nombre
-- **THEN** el nombre se guarda en el almacenamiento local del navegador
-
-#### Scenario: Nombre restaurado
-- **WHEN** el usuario abre el chat de nuevo y existe un nombre guardado
-- **THEN** el campo de nombre se rellena automáticamente con ese valor
-
 ### Requirement: Distinción de mensajes propios
 
 El chat SHALL distinguir visualmente los mensajes enviados por el propio usuario de los ajenos.
@@ -88,3 +76,14 @@ El chat SHALL distinguir visualmente los mensajes enviados por el propio usuario
 - **WHEN** el usuario recibe su propio mensaje de vuelta desde el servidor
 - **THEN** el mensaje se marca visualmente como propio
 
+### Requirement: Nombre desde la identidad autenticada
+
+El chat SHALL mostrar como nombre de usuario el de la identidad autenticada, en un campo de solo lectura, y SHALL no guardar el nombre en el almacenamiento local del navegador.
+
+#### Scenario: Nombre desde la identidad
+- **WHEN** un usuario autenticado abre el chat
+- **THEN** el campo de nombre muestra el nombre de su identidad y no se puede editar
+
+#### Scenario: Sin persistencia local
+- **WHEN** el usuario envía un mensaje
+- **THEN** el nombre no se escribe en el almacenamiento local del navegador
