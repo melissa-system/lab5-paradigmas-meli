@@ -24,10 +24,10 @@
 - [x] 4.1 Integración (Jest): `/` con y sin sesión, `/me`, rechazo de Socket.IO sin sesión, anti-suplantación del remitente, redirección de errores, secretos ausentes en respuestas
 - [x] 4.2 Unitarias (Mocha/jsdom): `login.html` muestra el mensaje correcto por código y el genérico ante códigos desconocidos o con HTML; `index.html` pinta la identidad
 - [ ] 4.3 E2E (Playwright): servidor de prueba con autenticación falsa; flujo login → chat → mensaje → logout; actualizar `playwright.config.js`
-- [ ] 4.4 Ejecutar las tres suites y `npm run snyk:test`; guardar evidencia
+- [x] 4.4 Ejecutar las tres suites y la auditoría de dependencias (Mocha 86, Jest 21, Playwright 8; `npm audit --omit=dev` sin vulnerabilidades). `npm run snyk:test` y capturas: en la máquina de Meli
 
 ## 5. Despliegue y documentación
 
-- [ ] 5.1 `api/index.js` y `vercel.json` para Vercel
-- [ ] 5.2 README: configurar Auth0 (aplicación, conexión social, URLs locales y de Vercel), ejecutar en local, desplegar en Vercel y limitación de tiempo real
+- [x] 5.1 Entrada `app.js` para Vercel y páginas movidas a `views/` (sin HTML estático que evite el login)
+- [x] 5.2 README: configurar Auth0 (aplicación, conexión social, URLs locales y de Vercel), ejecutar en local, desplegar en Vercel y limitación de tiempo real
 - [ ] 5.3 Verificación manual con Auth0 real: login/logout/cancelación en local y en Vercel (evidencias)

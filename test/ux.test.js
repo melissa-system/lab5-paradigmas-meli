@@ -6,7 +6,7 @@ var ioClient = require('socket.io-client');
 var request = require('supertest');
 var { fakeAuth, cookieFor } = require('../tests/helpers/fakeAuth');
 
-var INDEX_HTML = path.resolve(__dirname, '..', 'index.html');
+var INDEX_HTML = path.resolve(__dirname, '..', 'views', 'index.html');
 
 // ---------------------------------------------------------------------------
 // Mini-implementacion de jQuery: solo lo que index.html usa.

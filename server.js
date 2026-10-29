@@ -1,5 +1,6 @@
 // UNA Chat: Express + Socket.IO con autenticacion social (Auth0).
 
+var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
 var express = require('express');
@@ -10,8 +11,11 @@ var authUtils = require('./libs/auth');
 var socketTicket = require('./libs/socketTicket');
 
 var port = process.env.PORT || 3000;
-var INDEX_HTML = path.join(__dirname, 'index.html');
-var LOGIN_HTML = path.join(__dirname, 'login.html');
+// Las paginas viven en views/ (no en la raiz ni en public/) para que ningun
+// hosting las sirva como archivo estatico sin pasar por la autenticacion.
+// Se leen con readFileSync para que Vercel las incluya en la funcion.
+var INDEX_HTML = fs.readFileSync(path.join(__dirname, 'views', 'index.html'), 'utf8');
+var LOGIN_HTML = fs.readFileSync(path.join(__dirname, 'views', 'login.html'), 'utf8');
 
 // Crea la app. Por defecto usa Auth0 real desde las variables de entorno y
 // falla si falta alguna. Las pruebas pueden inyectar `auth` y `ticketSecret`.
@@ -40,7 +44,7 @@ function createServer(options) {
   // root: chat con sesion, pantalla de inicio de sesion sin ella
   app.get('/', function (req, res) {
     res.set('Cache-Control', 'no-store');
-    res.sendFile(authUtils.isAuthenticated(req) ? INDEX_HTML : LOGIN_HTML);
+    res.type('html').send(authUtils.isAuthenticated(req) ? INDEX_HTML : LOGIN_HTML);
   });
 
   // identidad publica del usuario autenticado

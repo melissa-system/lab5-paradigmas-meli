@@ -10,7 +10,7 @@ Hoy cualquiera que abra UNA Chat puede escribir con el nombre que quiera: no hay
 - El nombre del remitente de cada mensaje lo asigna el servidor a partir de la identidad autenticada; el campo de nombre deja de ser editable y ya no se guarda en el navegador.
 - Mostrar un mensaje claro y un botón "Reintentar" cuando el usuario cancela el inicio de sesión o Auth0 devuelve un error.
 - Toda la configuración (dominio, client id, client secret, secreto de sesión, URL base) se lee de variables de entorno; se agrega `.env.example` sin credenciales y ningún secreto llega al navegador.
-- Preparar el despliegue en Vercel (punto de entrada serverless + `vercel.json`) y documentar en el README la configuración de Auth0, la ejecución local y el despliegue.
+- Preparar el despliegue en Vercel (punto de entrada `app.js` que Vercel detecta para Express; páginas en `views/` para que no se sirvan como estáticos sin login) y documentar en el README la configuración de Auth0, la ejecución local y el despliegue.
 
 ## Capabilities
 
@@ -23,9 +23,9 @@ Hoy cualquiera que abra UNA Chat puede escribir con el nombre que quiera: no hay
 ## Impact
 
 - `server.js`: se refactoriza a una fábrica `createServer({ auth })` para poder inyectar la autenticación (real en producción, falsa en pruebas); middleware de Auth0, rutas `/login`, `/logout`, `/callback`, `/me`, protección del handshake de Socket.IO y manejador de errores de autenticación.
-- `index.html`: barra de identidad (nombre, foto, "Cerrar sesión"); el campo nombre pasa a solo lectura.
-- Nuevo `login.html`: pantalla de inicio de sesión y de error con "Reintentar".
-- Nuevos `api/index.js` y `vercel.json` para Vercel; nuevos `.env.example` y `README.md`.
+- `index.html` se mueve a `views/index.html`: barra de identidad (nombre, foto, "Cerrar sesión"); el campo nombre pasa a solo lectura.
+- Nuevo `views/login.html`: pantalla de inicio de sesión y de error con "Reintentar".
+- Nuevo `app.js` (entrada para Vercel); nuevos `.env.example` y `README.md`.
 - Nueva dependencia de producción: `express-openid-connect` (SDK oficial de Auth0 para Express). Desarrollo: `dotenv` para cargar `.env` en local.
 - Pruebas: se adaptan las suites de integración (Jest) y E2E (Playwright) para usar un servidor con autenticación falsa; nuevas pruebas para los escenarios de `social-auth`.
 - Sin cambios en `libs/unalib.js` (la validación de mensajes se mantiene).

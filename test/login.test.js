@@ -5,7 +5,7 @@ var { JSDOM } = require('jsdom');
 
 // Requerimientos social-auth: Acceso requiere autenticacion (pantalla de login)
 // y Cancelacion y errores de inicio de sesion.
-var LOGIN_HTML = fs.readFileSync(path.resolve(__dirname, '..', 'login.html'), 'utf8');
+var LOGIN_HTML = fs.readFileSync(path.resolve(__dirname, '..', 'views', 'login.html'), 'utf8');
 
 function abrir(query) {
   var dom = new JSDOM(LOGIN_HTML, { runScripts: 'dangerously', url: 'http://localhost/' + (query || '') });
