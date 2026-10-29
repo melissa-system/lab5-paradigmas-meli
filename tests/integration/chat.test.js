@@ -1,8 +1,10 @@
 const request = require('supertest');
 const { io: createClient } = require('socket.io-client');
-const server = require('../../server');
+const { createServer } = require('../../server');
+const { fakeAuth, cookieFor } = require('../helpers/fakeAuth');
 const validation = require('../../libs/unalib');
 
+let server;
 let httpServer;
 let client;
 let validateMessageSpy;
@@ -22,15 +24,22 @@ function sendMessage(payload) {
   });
 }
 
+// El chat requiere sesion (US-01): se usa autenticacion simulada y el ticket
+// que entrega /socket-token al usuario autenticado.
+const USUARIO = 'Usuario Integracion';
+
 beforeAll((done) => {
   validateMessageSpy = jest.spyOn(validation, 'validateMessage');
+  server = createServer({ auth: fakeAuth(), ticketSecret: 'i'.repeat(64) });
 
-  httpServer = server.http.listen(0, '127.0.0.1', () => {
+  httpServer = server.http.listen(0, '127.0.0.1', async () => {
     const { port } = httpServer.address();
+    const { body } = await request(server.app).get('/socket-token').set('Cookie', cookieFor(USUARIO));
     client = createClient(`http://127.0.0.1:${port}`, {
       transports: ['websocket'],
       forceNew: true,
-      reconnection: false
+      reconnection: false,
+      auth: { token: body.token }
     });
     client.on('connect', done);
     client.on('connect_error', done);
@@ -50,8 +59,8 @@ beforeEach(() => {
 });
 
 describe('Backend HTTP', () => {
-  test('Given el servidor, When se solicita GET /, Then entrega el cliente HTML del chat', async () => {
-    const response = await request(server.app).get('/').expect(200);
+  test('Given un usuario autenticado, When se solicita GET /, Then entrega el cliente HTML del chat', async () => {
+    const response = await request(server.app).get('/').set('Cookie', cookieFor(USUARIO)).expect(200);
 
     expect(response.headers['content-type']).toMatch(/text\/html/);
     expect(response.text).toContain('<title>Chat Socket.IO UNA</title>');
@@ -69,8 +78,9 @@ describe('Backend + una-lib por Socket.IO', () => {
     const response = await sendMessage(payload);
 
     expect(validateMessageSpy).toHaveBeenCalledTimes(1);
-    expect(validateMessageSpy).toHaveBeenCalledWith(JSON.stringify(payload));
-    expect(response.nombre).toBe('Ana');
+    expect(validateMessageSpy).toHaveBeenCalledWith(JSON.stringify({ ...payload, nombre: USUARIO }));
+    // el remitente lo asigna el servidor desde la identidad autenticada (US-01)
+    expect(response.nombre).toBe(USUARIO);
     expect(response.mensaje).toContain('<img');
     expect(response.mensaje).toContain('foto.png');
   });

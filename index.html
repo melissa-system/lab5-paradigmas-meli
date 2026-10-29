@@ -8,6 +8,10 @@
       #estado { position: fixed; top: 0; left: 0; width: 100%; padding: 6px 10px; text-align: center; font-weight: bold; color: #fff; }
       #estado.conectado { background: #2e7d32; }
       #estado.desconectado { background: #c62828; }
+      #sesion { position: fixed; top: 0; right: 10px; z-index: 2; height: 30px; display: flex; align-items: center; gap: 8px; color: #fff; font-weight: bold; }
+      #sesion img { width: 22px; height: 22px; border-radius: 50%; }
+      #sesion a { color: #fff; }
+      #nombre[readonly] { background: #ddd; color: #333; }
       #messages { list-style-type: none; margin: 0; padding: 0; padding-top: 30px; }
       #messages li { padding: 5px 10px; }
       #messages li:nth-child(odd) { background: #eee; }
@@ -26,9 +30,14 @@
   </head>
   <body>
     <div id="estado" class="desconectado">Desconectado</div>
+    <div id="sesion">
+      <img id="usuario-foto" alt="" hidden>
+      <span id="usuario-nombre"></span>
+      <a id="cerrar-sesion" href="/logout">Cerrar sesión</a>
+    </div>
     <ul id="messages"></ul>
     <form action="">
-      <input id="nombre" autocomplete="off" placeholder="Username"/>
+      <input id="nombre" autocomplete="off" placeholder="Username" readonly aria-label="Tu nombre"/>
       <input id="m" autocomplete="off" placeholder="Escriba un mensaje" /><button id="enviar" disabled>Send</button>
     </form>
     <script src="https://cdn.socket.io/4.7.2/socket.io.js"></script>
@@ -36,7 +45,6 @@
     <script>
 
     var colorHexTxt = "";
-    var NOMBRE_KEY = "chat_ux_nombre";
 
     // genera colores aleatorios en hexadeximal
     function getRandomColor() {
@@ -64,8 +72,42 @@
     }
 
       $(function () {
-        var socket = io();
-        var nombreGuardado = window.localStorage ? window.localStorage.getItem(NOMBRE_KEY) : null;
+        // nombre de la identidad autenticada (lo asigna el servidor)
+        var nombreUsuario = null;
+
+        // el canal en tiempo real exige un ticket de la sesion actual
+        function pedirTicket(cb) {
+            if (typeof fetch !== 'function') { cb({}); return; }
+            fetch('/socket-token', { credentials: 'same-origin' })
+                .then(function (r) { return r.ok ? r.json() : {}; })
+                .then(function (d) { cb({ token: d.token }); })
+                .catch(function () { cb({}); });
+        }
+
+        var socket = io({ auth: pedirTicket });
+
+        // muestra quien inicio sesion
+        function mostrarIdentidad(perfil) {
+            nombreUsuario = perfil.name;
+            document.getElementById('usuario-nombre').textContent = perfil.name;
+            var foto = document.getElementById('usuario-foto');
+            if (perfil.picture) {
+                foto.src = perfil.picture;
+                foto.hidden = false;
+            }
+            document.getElementById('nombre').value = perfil.name;
+            actualizarBoton();
+        }
+
+        if (typeof fetch === 'function') {
+            fetch('/me', { credentials: 'same-origin' })
+                .then(function (r) {
+                    if (r.status === 401) { window.location.href = '/'; return null; }
+                    return r.json();
+                })
+                .then(function (perfil) { if (perfil) { mostrarIdentidad(perfil); } })
+                .catch(function () {});
+        }
 
         // estado de conexion
         function actualizarEstado(conectado) {
@@ -79,12 +121,11 @@
 
         socket.on('connect', function () { actualizarEstado(true); });
         socket.on('disconnect', function () { actualizarEstado(false); });
-        socket.on('connect_error', function () { actualizarEstado(false); });
-
-        // restaura el nombre guardado
-        if (nombreGuardado) {
-            $('#nombre').val(nombreGuardado);
-        }
+        socket.on('connect_error', function (err) {
+            actualizarEstado(false);
+            // la sesion expiro o se cerro: volver a la pantalla de inicio de sesion
+            if (err && err.message === 'unauthorized') { window.location.href = '/'; }
+        });
 
         // feedback visual del boton segun el contenido
         function actualizarBoton() {
@@ -96,7 +137,7 @@
 
         // emite evento al servidor
         $('form').submit(function(){
-            var nombreTxt = $('#nombre').val() || "Anomimo";
+            var nombreTxt = nombreUsuario || $('#nombre').val();
             var mensajeTxt = $('#m').val();
 
             // bloquea mensajes vacios o solo con espacios
@@ -106,11 +147,6 @@
 
             if (colorHexTxt == "") {
                 colorHexTxt = getRandomColor();
-            }
-
-            // persiste el nombre en el navegador
-            if (window.localStorage) {
-                window.localStorage.setItem(NOMBRE_KEY, nombreTxt);
             }
 
             var jsonMsg = { nombre: nombreTxt, mensaje: mensajeTxt, color: colorHexTxt };
@@ -140,7 +176,7 @@
             $li.append($('<span>').addClass('hora').text(formatearHora(new Date())));
 
             // marca visualmente los mensajes propios
-            if (nombreGuardado && msgJson.nombre === nombreGuardado) {
+            if (nombreUsuario && msgJson.nombre === nombreUsuario) {
                 $li.addClass('propio');
             }
 
