@@ -83,7 +83,7 @@ async function abrirChatConectado(page) {
 
 async function enviarMensaje(page, texto) {
   await page.getByPlaceholder('Escriba un mensaje').fill(texto);
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Enviar' }).click();
 }
 
 test('Given una URL de imagen valida, When se envia, Then la imagen se muestra y termina de cargar', async ({ page }) => {

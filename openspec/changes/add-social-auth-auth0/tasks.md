@@ -31,3 +31,7 @@
 - [x] 5.1 Entrada `app.js` para Vercel y páginas movidas a `views/` (sin HTML estático que evite el login)
 - [x] 5.2 README: configurar Auth0 (aplicación, conexión social, URLs locales y de Vercel), ejecutar en local, desplegar en Vercel y limitación de tiempo real
 - [ ] 5.3 Verificación manual con Auth0 real: login/logout/cancelación en local y en Vercel (evidencias)
+
+## 6. Interfaz
+
+- [x] 6.1 Rediseño visual de `views/index.html` y `views/login.html` (barra con marca, estado e identidad; burbujas; paleta UNA; modo oscuro; móvil) sin cambiar el comportamiento especificado

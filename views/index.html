@@ -1,44 +1,105 @@
 <!doctype html>
-<html>
+<html lang="es">
   <head>
     <title>Chat Socket.IO UNA</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
+      :root {
+        --una: #c8102e;
+        --una-oscuro: #9e0c24;
+        --fondo: #f4f5f7;
+        --superficie: #ffffff;
+        --texto: #1f2933;
+        --suave: #6b7280;
+        --borde: #e3e6ea;
+        --burbuja: #ffffff;
+        --burbuja-propia: #fde8eb;
+        --ok: #1f9d55;
+        --error: #d64545;
+        --sombra: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fondo: #111418;
+          --superficie: #1a1f25;
+          --texto: #e6e8eb;
+          --suave: #9aa3ad;
+          --borde: #2a3139;
+          --burbuja: #222930;
+          --burbuja-propia: #3a1c22;
+          --sombra: 0 1px 2px rgba(0, 0, 0, .4);
+        }
+      }
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font: 13px Helvetica, Arial; }
-      #estado { position: fixed; top: 0; left: 0; width: 100%; padding: 6px 10px; text-align: center; font-weight: bold; color: #fff; }
-      #estado.conectado { background: #2e7d32; }
-      #estado.desconectado { background: #c62828; }
-      #sesion { position: fixed; top: 0; right: 10px; z-index: 2; height: 30px; display: flex; align-items: center; gap: 8px; color: #fff; font-weight: bold; }
-      #sesion img { width: 22px; height: 22px; border-radius: 50%; }
-      #sesion a { color: #fff; }
-      #nombre[readonly] { background: #ddd; color: #333; }
-      #messages { list-style-type: none; margin: 0; padding: 0; padding-top: 30px; }
-      #messages li { padding: 5px 10px; }
-      #messages li:nth-child(odd) { background: #eee; }
-      #messages li .hora { color: #888; font-size: 11px; margin-left: 6px; }
-      #messages li.propio { background: #d7f0ff; }
-      #messages { margin-bottom: 40px }
-      #messages li img, #messages li video, #messages li iframe { display: block; margin-top: 5px; border-radius: 4px; }
-      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
-      form input { border: 0; padding: 10px;}
-      form button { width: 10%; background: rgb(130, 224, 255);  border: none; padding: 10px; }
-      form button:disabled { opacity: 0.5; cursor: not-allowed; }
-      #nombre, #m { display: inline-block;}
-      #m {width: 69%; margin-right: 4px;}
-      #nombre {width: 20%}
+      html { background: var(--fondo); }
+      body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--texto); background: var(--fondo); min-height: 100vh; }
+
+      /* barra superior */
+      .barra { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--una); color: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .15); }
+      .marca { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: .2px; }
+      .logo { width: 32px; height: 32px; border-radius: 9px; background: #fff; color: var(--una); display: grid; place-items: center; font-weight: 800; }
+      #estado { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(255, 255, 255, .16); }
+      #estado::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+      #estado.conectado::before { background: #6ee7a8; box-shadow: 0 0 0 3px rgba(110, 231, 168, .3); }
+      #estado.desconectado::before { background: #ffb4b4; }
+      #sesion { margin-left: auto; display: flex; align-items: center; gap: 10px; min-width: 0; }
+      #sesion img { width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .7); object-fit: cover; }
+      #usuario-nombre { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+      #cerrar-sesion { color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 6px 12px; border: 1px solid rgba(255, 255, 255, .6); border-radius: 999px; white-space: nowrap; }
+      #cerrar-sesion:hover, #cerrar-sesion:focus-visible { background: #fff; color: var(--una); }
+
+      /* mensajes */
+      main { max-width: 860px; margin: 0 auto; padding: 20px 16px 110px; }
+      #messages { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+      #messages li { align-self: flex-start; max-width: min(78%, 560px); background: var(--burbuja); border: 1px solid var(--borde); border-radius: 16px 16px 16px 4px; padding: 8px 12px 6px; box-shadow: var(--sombra); overflow-wrap: anywhere; }
+      #messages li.propio { align-self: flex-end; background: var(--burbuja-propia); border-color: transparent; border-radius: 16px 16px 4px 16px; }
+      #messages li > b { display: block; font-size: 13px; margin-bottom: 2px; }
+      #messages li .hora { display: block; text-align: right; color: var(--suave); font-size: 11px; margin-top: 2px; }
+      #messages li img, #messages li video, #messages li iframe { display: block; margin-top: 6px; border-radius: 10px; max-width: 100% !important; height: auto; }
+      #messages li iframe { aspect-ratio: 16 / 9; width: 560px; }
+      .vacio { display: none; text-align: center; color: var(--suave); margin-top: 18vh; }
+      .vacio strong { display: block; color: var(--texto); font-size: 17px; margin-bottom: 4px; }
+      #messages:empty + .vacio { display: block; }
+
+      /* formulario */
+      form { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--superficie); border-top: 1px solid var(--borde); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+      .compositor { max-width: 860px; margin: 0 auto; display: flex; gap: 8px; align-items: center; }
+      form input { font: inherit; color: var(--texto); border: 1px solid var(--borde); background: var(--fondo); border-radius: 999px; padding: 11px 16px; outline: none; }
+      form input:focus { border-color: var(--una); box-shadow: 0 0 0 3px rgba(200, 16, 46, .15); }
+      #nombre { flex: 0 0 170px; font-weight: 600; color: var(--suave); }
+      #nombre[readonly] { cursor: default; }
+      #m { flex: 1; min-width: 0; }
+      form button { font: inherit; font-weight: 700; color: #fff; background: var(--una); border: none; border-radius: 999px; padding: 11px 22px; cursor: pointer; }
+      form button:hover:not(:disabled), form button:focus-visible { background: var(--una-oscuro); }
+      form button:disabled { opacity: .45; cursor: not-allowed; }
+
+      @media (max-width: 600px) {
+        .marca span:last-child, #usuario-nombre { display: none; }
+        #nombre { display: none; }
+        #messages li { max-width: 88%; }
+      }
     </style>
   </head>
   <body>
-    <div id="estado" class="desconectado">Desconectado</div>
-    <div id="sesion">
-      <img id="usuario-foto" alt="" hidden>
-      <span id="usuario-nombre"></span>
-      <a id="cerrar-sesion" href="/logout">Cerrar sesión</a>
-    </div>
-    <ul id="messages"></ul>
+    <header class="barra">
+      <div class="marca"><span class="logo" aria-hidden="true">U</span><span>UNA Chat</span></div>
+      <div id="estado" class="desconectado" role="status">Desconectado</div>
+      <div id="sesion">
+        <img id="usuario-foto" alt="" hidden>
+        <span id="usuario-nombre"></span>
+        <a id="cerrar-sesion" href="/logout">Cerrar sesión</a>
+      </div>
+    </header>
+    <main>
+      <ul id="messages"></ul>
+      <p class="vacio"><strong>Todavía no hay mensajes</strong>Escribí algo para empezar la conversación. También podés pegar el enlace de una imagen o un video.</p>
+    </main>
     <form action="">
-      <input id="nombre" autocomplete="off" placeholder="Username" readonly aria-label="Tu nombre"/>
-      <input id="m" autocomplete="off" placeholder="Escriba un mensaje" /><button id="enviar" disabled>Send</button>
+      <div class="compositor">
+        <input id="nombre" autocomplete="off" placeholder="Username" readonly aria-label="Tu nombre"/>
+        <input id="m" autocomplete="off" placeholder="Escriba un mensaje" aria-label="Mensaje" /><button id="enviar" disabled>Enviar</button>
+      </div>
     </form>
     <script src="https://cdn.socket.io/4.7.2/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
@@ -46,16 +107,11 @@
 
     var colorHexTxt = "";
 
-    // genera colores aleatorios en hexadeximal
+    // color del nombre: aleatorio, pero de una paleta legible sobre las burbujas
+    var PALETA_NOMBRES = ['#C8102E', '#1D4ED8', '#047857', '#7C3AED', '#B45309', '#0E7490', '#BE185D', '#4D7C0F'];
     function getRandomColor() {
-        var letters = '0123456789ABCDEF';
-        var color = '#';
-        for (var i = 0; i < 6; i++) {
-          color += letters[Math.floor(Math.random() * 16)];
-        }
-
-        return color;
-     }
+        return PALETA_NOMBRES[Math.floor(Math.random() * PALETA_NOMBRES.length)];
+    }
 
     // devuelve true si el texto (sin espacios) tiene contenido
     function tieneContenido(texto) {
@@ -169,7 +225,7 @@
             var $nombre = $('<b>').css('color', colorSeguro).text(msgJson.nombre);
 
             // el mensaje viene sanitizado por el servidor (texto escapado o tag de media seguro)
-            var $li = $('<li>').append($nombre).append(document.createTextNode(': '));
+            var $li = $('<li>').append($nombre);
             $li.append(msgJson.mensaje);
 
             // hora local del mensaje
