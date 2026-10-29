@@ -3,8 +3,10 @@ var fs = require('fs');
 var path = require('path');
 var { JSDOM } = require('jsdom');
 var ioClient = require('socket.io-client');
+var request = require('supertest');
+var { fakeAuth, cookieFor } = require('../tests/helpers/fakeAuth');
 
-var INDEX_HTML = path.resolve(__dirname, '..', 'index.html');
+var INDEX_HTML = path.resolve(__dirname, '..', 'views', 'index.html');
 
 // ---------------------------------------------------------------------------
 // Mini-implementacion de jQuery: solo lo que index.html usa.
@@ -73,9 +75,10 @@ function makeJQuery(window) {
 }
 
 // ---------------------------------------------------------------------------
-// Entorno de DOM con socket simulado. nameGuardado simula localStorage.
+// Entorno de DOM con socket simulado. `nombre` es la identidad autenticada
+// que devuelve /me (US-01); fetch esta simulado.
 // ---------------------------------------------------------------------------
-function crearEntorno(nombreGuardado) {
+function crearEntorno(nombre, foto) {
   var html = fs.readFileSync(INDEX_HTML, 'utf8');
 
   var dom = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost/' });
@@ -93,13 +96,22 @@ function crearEntorno(nombreGuardado) {
     disparar: function (evt, payload) { (listeners[evt] || []).forEach(function (fn) { fn(payload); }); }
   };
 
-  // localStorage falso, pre-cargado opcionalmente
+  // localStorage falso (debe quedar vacio: el nombre ya no se guarda)
   var store = {};
-  if (nombreGuardado) { store['chat_ux_nombre'] = nombreGuardado; }
+
+  // fetch falso: /me devuelve la identidad y /socket-token un ticket
+  var perfil = { name: nombre || 'Usuario Prueba', email: 'test@test.local', picture: foto || '' };
+  function respuesta(body) {
+    return Promise.resolve({ status: 200, ok: true, json: function () { return Promise.resolve(body); } });
+  }
+  window.fetch = function (url) {
+    return url === '/me' ? respuesta(perfil) : respuesta({ token: 'ticket-de-prueba' });
+  };
+  var opcionesSocket = null;
 
   window.$ = $;
   window.jQuery = $;
-  window.io = function () { return fakeSocket; };
+  window.io = function (opts) { opcionesSocket = opts; return fakeSocket; };
   window.scrollTo = function () {};
   Object.defineProperty(window, 'localStorage', {
     value: {
@@ -113,7 +125,12 @@ function crearEntorno(nombreGuardado) {
   var script = html.match(/<script>\s*([\s\S]*?)<\/script>\s*<\/body>/)[1];
   window.eval(script);
 
-  return { dom: dom, window: window, document: document, socket: fakeSocket, emitidos: emitidos, $: $, store: store };
+  return {
+    dom: dom, window: window, document: document, socket: fakeSocket, emitidos: emitidos, $: $, store: store,
+    opcionesSocket: function () { return opcionesSocket; },
+    // espera a que se resuelvan las promesas de fetch (identidad cargada)
+    listo: function () { return new Promise(function (r) { setTimeout(r, 0); }); }
+  };
 }
 
 describe('chat-ux (integracion DOM)', function () {
@@ -223,34 +240,79 @@ describe('chat-ux (integracion DOM)', function () {
 
   });
 
-  describe('Requerimiento: Persistencia del nombre de usuario', function () {
+  describe('Requerimiento: Nombre desde la identidad autenticada', function () {
 
-    it('Given un nombre escrito, When el usuario envia, Then se guarda en localStorage', function () {
-      var e = crearEntorno();
-      e.$('#nombre').val('melissa');
-      e.$('#m').val('hola');
-      e.document.querySelector('form').dispatchEvent(new e.window.Event('submit'));
-      assert.equal(e.store['chat_ux_nombre'], 'melissa');
+    it('Given un usuario autenticado, When carga, Then el nombre es el de su identidad y es de solo lectura', async function () {
+      var e = crearEntorno('Melissa Campos');
+      await e.listo();
+      var nombre = e.document.getElementById('nombre');
+      assert.equal(nombre.value, 'Melissa Campos');
+      assert.equal(nombre.readOnly, true);
     });
 
-    it('Given un nombre guardado, When el cliente carga, Then el campo de nombre se rellena', function () {
+    it('Given un envio, When termina, Then el nombre no se guarda en localStorage', async function () {
       var e = crearEntorno('melissa');
-      assert.equal(e.$('#nombre').val(), 'melissa');
+      await e.listo();
+      e.$('#m').val('hola');
+      e.document.querySelector('form').dispatchEvent(new e.window.Event('submit'));
+      assert.deepEqual(Object.keys(e.store), []);
+      assert.equal(JSON.parse(e.emitidos[0].payload).nombre, 'melissa');
+    });
+
+  });
+
+  describe('Requerimiento social-auth: Identidad visible y cierre de sesion', function () {
+
+    it('Given un usuario autenticado, When carga, Then muestra su nombre y "Cerrar sesión"', async function () {
+      var e = crearEntorno('Melissa Campos');
+      await e.listo();
+      assert.equal(e.document.getElementById('usuario-nombre').textContent, 'Melissa Campos');
+      var salir = e.document.getElementById('cerrar-sesion');
+      assert.equal(salir.getAttribute('href'), '/logout');
+      assert.equal(salir.textContent, 'Cerrar sesión');
+    });
+
+    it('Given un perfil con foto, When carga, Then muestra la foto', async function () {
+      var e = crearEntorno('Ana', 'https://example.com/ana.png');
+      await e.listo();
+      var foto = e.document.getElementById('usuario-foto');
+      assert.equal(foto.hidden, false);
+      assert.equal(foto.getAttribute('src'), 'https://example.com/ana.png');
+    });
+
+    it('Given un perfil sin foto, When carga, Then no muestra una imagen vacia', async function () {
+      var e = crearEntorno('Ana');
+      await e.listo();
+      assert.equal(e.document.getElementById('usuario-foto').hidden, true);
+    });
+
+    it('Given un nombre con HTML, When se muestra, Then se inserta como texto', async function () {
+      var e = crearEntorno('<img src=x onerror=alert(1)>');
+      await e.listo();
+      assert.equal(e.document.querySelector('#sesion img[src="x"]'), null);
+      assert.equal(e.document.getElementById('usuario-nombre').textContent, '<img src=x onerror=alert(1)>');
+    });
+
+    it('Given el chat, When se conecta al canal, Then pide un ticket de sesion', function () {
+      var e = crearEntorno();
+      assert.equal(typeof e.opcionesSocket().auth, 'function');
     });
 
   });
 
   describe('Requerimiento: Distincion de mensajes propios', function () {
 
-    it('Given el usuario meli, When recibe su propio mensaje, Then se marca como propio', function () {
+    it('Given el usuario meli, When recibe su propio mensaje, Then se marca como propio', async function () {
       var e = crearEntorno('meli');
+      await e.listo();
       e.socket.disparar('Evento-Mensaje-Server', JSON.stringify({ nombre: 'meli', mensaje: 'hola', color: '#112233' }));
       var li = e.document.querySelector('#messages li');
       assert.equal(li.classList.contains('propio'), true);
     });
 
-    it('Given el usuario meli, When recibe un mensaje ajeno, Then no se marca como propio', function () {
+    it('Given el usuario meli, When recibe un mensaje ajeno, Then no se marca como propio', async function () {
       var e = crearEntorno('meli');
+      await e.listo();
       e.socket.disparar('Evento-Mensaje-Server', JSON.stringify({ nombre: 'otro', mensaje: 'hola', color: '#112233' }));
       var li = e.document.querySelector('#messages li');
       assert.equal(li.classList.contains('propio'), false);
@@ -281,22 +343,27 @@ describe('chat-ux e2e (servidor real)', function () {
 
   var server;
   var url;
+  var token;
 
+  // el canal exige sesion (US-01): autenticacion simulada + ticket
   before(function (done) {
     var mod = require('../server');
-    server = mod.http.listen(0, '127.0.0.1', function () {
-      url = 'http://127.0.0.1:' + server.address().port;
-      done();
+    server = mod.createServer({ auth: fakeAuth(), ticketSecret: 'u'.repeat(64) });
+    server.http.listen(0, '127.0.0.1', function () {
+      url = 'http://127.0.0.1:' + server.http.address().port;
+      request(server.app).get('/socket-token').set('Cookie', cookieFor('e2e')).then(function (res) {
+        token = res.body.token;
+        done();
+      }, done);
     });
   });
 
   after(function (done) {
-    server.close(function () { done(); });
-    if (server.io) { server.io.close(); }
+    server.io.close(function () { done(); });
   });
 
   function cliente() {
-    return ioClient(url, { forceNew: true, transports: ['websocket'] });
+    return ioClient(url, { forceNew: true, transports: ['websocket'], auth: { token: token } });
   }
 
   it('Given un cliente, When envia un mensaje valido, Then lo recibe de vuelta', function (done) {
