@@ -1,7 +1,6 @@
 {
   "dependencies": {
     "express": "*",
-    "mocha": "^10.2.0",
     "socket.io": "*"
   },
   "scripts": {
@@ -9,13 +8,18 @@
     "test": "mocha",
     "test:unit": "mocha test/test.js",
     "test:integration": "mocha test/ux.test.js",
-    "test:e2e": "mocha test/ux.test.js --grep \"e2e\""
+    "test:e2e": "mocha test/ux.test.js --grep \"e2e\"",
+    "snyk:auth": "snyk auth",
+    "snyk:test": "snyk test",
+    "snyk:monitor": "snyk monitor"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.5",
     "jest": "^30.5.2",
     "jsdom": "^29.1.1",
+    "mocha": "^12.0.3",
+    "snyk": "^1.1308.3",
     "socket.io-client": "^4.8.4",
     "supertest": "^7.3.1"
   }
