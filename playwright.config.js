@@ -9,8 +9,12 @@ module.exports = defineConfig({
   workers: 1,
   reporter: 'html',
   use: {
-    baseURL: 'http://127.0.0.1:3000',
-    trace: 'on-first-retry'
+    // servidor de prueba con autenticacion simulada (tests/e2e/test-server.js);
+    // puerto distinto a 3000 para no reutilizar por error el servidor real
+    baseURL: 'http://127.0.0.1:3100',
+    trace: 'on-first-retry',
+    // opcional: navegador ya instalado en la maquina (p. ej. en CI)
+    launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}
   },
   projects: [
     {
@@ -19,8 +23,8 @@ module.exports = defineConfig({
     }
   ],
   webServer: {
-    command: 'npm start',
-    url: 'http://127.0.0.1:3000',
+    command: 'node tests/e2e/test-server.js',
+    url: 'http://127.0.0.1:3100',
     reuseExistingServer: !process.env.CI,
     timeout: 30 * 1000
   }

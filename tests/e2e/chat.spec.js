@@ -68,10 +68,17 @@ test.afterAll(async () => {
   }
 });
 
-async function abrirChatConectado(page) {
+// US-01: el chat requiere sesion. El servidor E2E simula el proveedor social:
+// /login autentica como "Usuario E2E" y vuelve a /.
+async function iniciarSesion(page) {
   await page.goto('/');
+  await page.getByRole('link', { name: 'Iniciar sesión' }).click();
+  await expect(page.locator('#usuario-nombre')).toHaveText('Usuario E2E');
+}
+
+async function abrirChatConectado(page) {
+  await iniciarSesion(page);
   await expect(page.locator('#estado')).toHaveText('Conectado', { timeout: 15000 });
-  await page.getByPlaceholder('Username').fill('Playwright');
 }
 
 async function enviarMensaje(page, texto) {
@@ -125,4 +132,49 @@ test('Given un script, When se envia, Then no se ejecuta ningun alert y el mensa
   expect(await mensaje.innerHTML()).toContain('&lt;script&gt;');
   await expect(page.locator('#messages script')).toHaveCount(0);
   expect(dialogos).toEqual([]);
+});
+
+// ---------------------------------------------------------------------------
+// US-01 · social-auth
+// ---------------------------------------------------------------------------
+
+test('Given un visitante sin sesion, When abre UNA Chat, Then se le pide iniciar sesion y no ve el chat', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'Iniciar sesión' })).toBeVisible();
+  await expect(page.locator('#messages')).toHaveCount(0);
+});
+
+test('Given un usuario que inicia sesion, When entra al chat, Then ve su identidad y publica con su nombre', async ({ page }) => {
+  await abrirChatConectado(page);
+
+  await expect(page.getByRole('link', { name: 'Cerrar sesión' })).toBeVisible();
+  await expect(page.getByPlaceholder('Username')).toHaveValue('Usuario E2E');
+  await expect(page.getByPlaceholder('Username')).not.toBeEditable();
+
+  await enviarMensaje(page, 'hola desde e2e');
+  const mensaje = page.locator('#messages li').last();
+  await expect(mensaje).toContainText('Usuario E2E');
+  await expect(mensaje).toContainText('hola desde e2e');
+  await expect(mensaje).toHaveClass(/propio/);
+});
+
+test('Given un usuario autenticado, When cierra sesion, Then vuelve a la pantalla de inicio de sesion', async ({ page }) => {
+  await abrirChatConectado(page);
+  await page.getByRole('link', { name: 'Cerrar sesión' }).click();
+  await expect(page.getByRole('link', { name: 'Iniciar sesión' })).toBeVisible();
+  await expect(page.locator('#messages')).toHaveCount(0);
+});
+
+test('Given que el usuario cancela en el proveedor, When vuelve, Then ve un mensaje claro y puede reintentar', async ({ page }) => {
+  await page.goto('/callback?error=access_denied&error_description=User%20cancelled');
+  await expect(page.getByRole('alert')).toHaveText('Cancelaste el inicio de sesión.');
+
+  await page.getByRole('link', { name: 'Reintentar' }).click();
+  await expect(page.locator('#usuario-nombre')).toHaveText('Usuario E2E');
+});
+
+test('Given un error de autenticacion, When vuelve, Then ve el mensaje generico y Reintentar', async ({ page }) => {
+  await page.goto('/callback?error=server_error');
+  await expect(page.getByRole('alert')).toHaveText('No se pudo iniciar sesión. Intentá de nuevo.');
+  await expect(page.getByRole('link', { name: 'Reintentar' })).toBeVisible();
 });
